@@ -1,0 +1,227 @@
+/* Button Component Styles */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  white-space: nowrap;
+  min-height: 2.75rem;
+  font-family: inherit;
+}
+
+/* Variants */
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:hover:not(.btn-disabled):not(.btn-loading) {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover:not(.btn-disabled):not(.btn-loading) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-outline {
+  background: transparent;
+  color: #667eea;
+  border: 2px solid #667eea;
+}
+
+.btn-outline:hover:not(.btn-disabled):not(.btn-loading) {
+  background: #667eea;
+  color: white;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  border: none;
+}
+
+.btn-ghost:hover:not(.btn-disabled):not(.btn-loading) {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover:not(.btn-disabled):not(.btn-loading) {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+/* Sizes */
+.btn-small {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  min-height: 2rem;
+  border-radius: 8px;
+}
+
+.btn-medium {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  min-height: 2.75rem;
+  border-radius: 12px;
+}
+
+.btn-large {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  min-height: 3.5rem;
+  border-radius: 16px;
+}
+
+/* States */
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-loading {
+  cursor: wait;
+  pointer-events: none;
+}
+
+.btn-loading .btn-text {
+  opacity: 0.7;
+}
+
+.btn-text-loading {
+  opacity: 0.7;
+}
+
+/* Loading Spinner */
+.btn-loading-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+}
+
+.btn-loading-spinner svg {
+  width: 100%;
+  height: 100%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Icon alignment */
+.btn svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.btn-small svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.btn-large svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Focus styles */
+.btn:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+.btn-ghost:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-danger:focus-visible {
+  outline-color: #ef4444;
+}
+
+/* Active state */
+.btn:active:not(.btn-disabled):not(.btn-loading) {
+  transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .btn {
+    padding: 0.75rem 1.25rem;
+  }
+  
+  .btn-small {
+    padding: 0.5rem 0.875rem;
+  }
+  
+  .btn-large {
+    padding: 1rem 1.75rem;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .btn-primary {
+    background: #000;
+    border: 2px solid #fff;
+  }
+  
+  .btn-secondary {
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+  }
+  
+  .btn-outline {
+    border-width: 3px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+  
+  .btn-loading-spinner svg {
+    animation: none;
+  }
+}
