@@ -13,6 +13,8 @@ const AuthenticationPage = lazy(() => import('./pages/AuthenticationPage'));
 const LivenessTestPage = lazy(() => import('./pages/LivenessTestPage'));
 const ResultsPage = lazy(() => import('./pages/ResultsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const AadhaarSchemePage = lazy(() => import('./pages/AadhaarScheme'));
+const SchemeFormsPage = lazy(() => import('./pages/SchemeForms'));
 
 function App() {
   return (
@@ -33,6 +35,9 @@ function App() {
                   <Route path="/liveness-test" element={<LivenessTestPage />} />
                   <Route path="/results" element={<ResultsPage />} />
                   <Route path="/404" element={<NotFoundPage />} />
+                  <Route path="/aadhaar-scheme" element={<AadhaarSchemePage />} />
+                  <Route path="/scheme-forms" element={<SchemeFormsPage />} />
+                  {/* Redirect all unknown routes to NotFoundPage */}
                   <Route path="*" element={<Navigate to="/404" replace />} />
                 </Routes>
               </Suspense>

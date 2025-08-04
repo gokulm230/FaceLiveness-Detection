@@ -17,25 +17,24 @@ import { useFaceDetection } from "../contexts/FaceDetectionContext";
 import { toast } from "react-toastify";
 
 const LIVENESS_TESTS = [
-  {
-    id: "blink",
-    type: "blink",
-    instruction: "Please blink naturally",
-    icon: Eye,
-  },
-  { id: "smile", type: "smile", instruction: "Please smile", icon: User },
-  {
-    id: "turn_left",
-    type: "turn",
-    instruction: "Please turn your head left",
-    icon: ArrowLeft,
-  },
-  {
-    id: "turn_right",
-    type: "turn",
-    instruction: "Please turn your head right",
-    icon: ArrowRight,
-  },
+
+  
+  // {
+  //   id: "turn_left",
+  //   type: "head_movement", // ✅ CHANGED FROM "turn" TO "head_movement"
+  //   instruction: "Please turn your head left slowly",
+  //   icon: ArrowLeft,
+  //   duration: 3000,
+  //   direction: "left",
+  // },
+  // {
+  //   id: "turn_right",
+  //   type: "head_movement", // ✅ CHANGED FROM "turn" TO "head_movement"
+  //   instruction: "Please turn your head right slowly",
+  //   icon: ArrowRight,
+  //   duration: 3000,
+  //   direction: "right",
+  // },
 ];
 
 const AuthenticationPage = () => {
@@ -55,6 +54,7 @@ const AuthenticationPage = () => {
     captureReference,
     getStoredFaceReference,
     clearStoredFaceReference,
+    performLivenessTest, // ✅ ADD THIS TO THE DESTRUCTURED VARIABLES
     error: faceDetectionError,
     loading: faceDetectionLoading,
     isCameraActive,
@@ -259,7 +259,10 @@ const AuthenticationPage = () => {
               );
               resolve();
             };
-            videoRef.current.addEventListener("loadedmetadata", onLoadedMetadata);
+            videoRef.current.addEventListener(
+              "loadedmetadata",
+              onLoadedMetadata
+            );
           });
 
           console.log("Video stream assigned successfully");
@@ -328,18 +331,20 @@ const AuthenticationPage = () => {
       }
 
       if (multipleFacesDetected) {
-        setError("Multiple faces detected. Please ensure only one person is visible.");
+        setError(
+          "Multiple faces detected. Please ensure only one person is visible."
+        );
         return;
       }
 
       console.log("Capturing face reference...");
-      
+
       // Capture and store the reference
       const result = await captureReference();
-      
+
       if (result.success) {
         console.log("Face reference captured successfully:", result.data);
-        
+
         // Show success message
         toast.success("Face reference captured and stored successfully!", {
           position: "top-center",
@@ -352,11 +357,10 @@ const AuthenticationPage = () => {
           setProgress(40);
         }, 1500);
       }
-      
     } catch (error) {
       console.error("Failed to capture reference:", error);
       setError(error.message || "Failed to capture face reference");
-      
+
       toast.error(error.message || "Failed to capture face reference", {
         position: "top-center",
         autoClose: 5000,
@@ -376,7 +380,9 @@ const AuthenticationPage = () => {
   useEffect(() => {
     const hasStoredReference = checkStoredReference();
     if (hasStoredReference) {
-      const lastCapture = JSON.parse(localStorage.getItem('lastFaceCapture') || '{}');
+      const lastCapture = JSON.parse(
+        localStorage.getItem("lastFaceCapture") || "{}"
+      );
       console.log("Found existing face reference:", lastCapture);
     }
   }, [checkStoredReference]);
@@ -400,16 +406,54 @@ const AuthenticationPage = () => {
       setCurrentStep("verification");
       setProgress(50);
 
+      // ❌ REMOVE THIS LINE - DON'T CALL HOOK INSIDE FUNCTION
+      // const { performLivenessTest } = useFaceDetection();
+
+      // ✅ USE THE FUNCTION DIRECTLY FROM THE DESTRUCTURED CONTEXT
       for (let i = 0; i < LIVENESS_TESTS.length; i++) {
+        const test = LIVENESS_TESTS[i];
         setCurrentTest(i);
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        try {
+          console.log(`Starting ${test.type} test:`, test);
+
+          // ✅ Use performLivenessTest directly (already available from context)
+          const result = await performLivenessTest(test.type, {
+            duration: test.duration,
+            threshold: test.threshold,
+            direction: test.direction,
+          });
+
+          console.log(`${test.type} test result:`, result);
+
+          if (!result.success) {
+            throw new Error(`${test.instruction} failed. Please try again.`);
+          }
+
+          // Show success feedback
+          toast.success(`${test.instruction} - Success!`, {
+            position: "top-center",
+            autoClose: 1500,
+          });
+        } catch (testError) {
+          console.error(`${test.type} test failed:`, testError);
+          setError(`${test.instruction} failed: ${testError.message}`);
+          setCurrentStep("liveness");
+          return;
+        }
+
         setProgress(50 + ((i + 1) / LIVENESS_TESTS.length) * 40);
       }
 
       setCurrentStep("complete");
       setProgress(100);
+
+      toast.success("All liveness tests completed successfully!", {
+        position: "top-center",
+        autoClose: 3000,
+      });
     } catch (err) {
-      console.error("Liveness test failed:", err);
+      console.error("Liveness test sequence failed:", err);
       setError("Liveness verification failed. Please try again.");
       setCurrentStep("liveness");
     }
@@ -458,7 +502,9 @@ const AuthenticationPage = () => {
   useEffect(() => {
     const handleVideoError = (error) => {
       console.error("Video element error:", error);
-      setError("Camera feed error. Please check camera permissions and try again.");
+      setError(
+        "Camera feed error. Please check camera permissions and try again."
+      );
     };
 
     if (videoRef.current) {
@@ -755,8 +801,13 @@ const AuthenticationPage = () => {
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 flex items-center space-x-3">
                 <Check className="w-5 h-5 text-blue-500 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-blue-700 font-medium">Previous face reference found</p>
-                  <p className="text-blue-600 text-sm">You can capture a new reference or continue with existing one.</p>
+                  <p className="text-blue-700 font-medium">
+                    Previous face reference found
+                  </p>
+                  <p className="text-blue-600 text-sm">
+                    You can capture a new reference or continue with existing
+                    one.
+                  </p>
                 </div>
                 <button
                   onClick={() => {
@@ -832,9 +883,7 @@ const AuthenticationPage = () => {
               {noFaceDetected && streamRef.current && (
                 <div className="absolute top-4 left-4 bg-yellow-500 text-white px-4 py-2 rounded-full flex items-center space-x-2">
                   <Scan className="w-4 h-4" />
-                  <span className="text-sm font-medium">
-                    No Face Detected
-                  </span>
+                  <span className="text-sm font-medium">No Face Detected</span>
                 </div>
               )}
 
@@ -864,8 +913,13 @@ const AuthenticationPage = () => {
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 flex items-center space-x-3">
                 <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-red-700 font-medium">Multiple faces detected!</p>
-                  <p className="text-red-600 text-sm">Please ensure only one person is visible in the camera frame.</p>
+                  <p className="text-red-700 font-medium">
+                    Multiple faces detected!
+                  </p>
+                  <p className="text-red-600 text-sm">
+                    Please ensure only one person is visible in the camera
+                    frame.
+                  </p>
                 </div>
               </div>
             )}
@@ -879,8 +933,7 @@ const AuthenticationPage = () => {
                     <br />
                     Stream: {streamRef.current ? "✅ Active" : "❌ Inactive"}
                     <br />
-                    Video Dimensions:{" "}
-                    {videoRef.current?.videoWidth || 0} x{" "}
+                    Video Dimensions: {videoRef.current?.videoWidth || 0} x{" "}
                     {videoRef.current?.videoHeight || 0}
                   </div>
                   <div>
@@ -903,10 +956,15 @@ const AuthenticationPage = () => {
               >
                 Cancel
               </button>
-              
+
               <button
                 onClick={handleCaptureReference}
-                disabled={!faceDetected || loading || !streamRef.current || multipleFacesDetected}
+                disabled={
+                  !faceDetected ||
+                  loading ||
+                  !streamRef.current ||
+                  multipleFacesDetected
+                }
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-2xl font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2"
               >
                 {loading ? (
@@ -979,18 +1037,48 @@ const AuthenticationPage = () => {
 
         {/* Verification in Progress */}
         {currentStep === "verification" && (
-          <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
             <h2 className="text-3xl font-bold text-gray-800 mb-4">
-              Verifying...
+              Performing Liveness Test
             </h2>
             <p className="text-xl text-gray-600 mb-8">
               {LIVENESS_TESTS[currentTest]?.instruction}
             </p>
 
             <div className="flex flex-col items-center space-y-6">
-              <div className="w-32 h-32 border-8 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              {/* Show current test icon */}
+              <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                {React.createElement(LIVENESS_TESTS[currentTest]?.icon, {
+                  className: "w-16 h-16 text-white",
+                })}
+              </div>
+
               <div className="text-lg font-medium text-gray-700">
                 Test {currentTest + 1} of {LIVENESS_TESTS.length}
+              </div>
+
+              {/* Real-time feedback */}
+              <div className="bg-blue-50 rounded-2xl p-4 w-full max-w-md">
+                <div className="text-center">
+                  <div className="text-sm text-blue-600 font-medium mb-2">
+                    Follow the instruction above
+                  </div>
+                  {faceDetected ? (
+                    <div className="flex items-center justify-center space-x-2 text-green-600">
+                      <Check className="w-4 h-4" />
+                      <span className="text-sm">
+                        Face detected - perform the action
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center space-x-2 text-yellow-600">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm">
+                        Position your face in the frame
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

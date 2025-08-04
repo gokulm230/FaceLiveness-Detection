@@ -784,13 +784,13 @@ export const FaceDetectionProvider = ({ children }) => {
     }
   }, []);
 
-  // Add the missing performLivenessTest function
+  // Update the performLivenessTest function
   const performLivenessTest = useCallback(async (testType, options = {}) => {
     try {
       dispatch({ type: ActionTypes.SET_DETECTING, payload: true });
       dispatch({ type: ActionTypes.CLEAR_ERROR });
 
-      console.log(`Starting ${testType} liveness test with options:`, options);
+      // console.log(`Starting ${testType} liveness test with options:`, options);
 
       const videoElement = videoRef.current;
       if (!videoElement) {
@@ -800,9 +800,6 @@ export const FaceDetectionProvider = ({ children }) => {
       let result;
 
       switch (testType) {
-        case 'blink':
-          result = await detectBlink(options.duration || 5000, options.threshold || 0.25);
-          break;
         case 'smile':
           result = await detectSmile(options.duration || 3000, options.threshold || 0.7);
           break;
@@ -823,100 +820,136 @@ export const FaceDetectionProvider = ({ children }) => {
     }
   }, []);
 
-  // Add the missing detectBlink function
-  const detectBlink = useCallback(async (duration = 5000, threshold = 0.25) => {
-    console.log(`Starting blink detection for ${duration}ms with threshold ${threshold}`);
+  // Helper functions - moved before other functions to fix initialization order
+  // Helper function to calculate distance between two points
+  const distance = useCallback((point1, point2) => {
+    const dx = point1.x - point2.x;
+    const dy = point1.y - point2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }, []);
+
+  // Helper function to get nose position from landmarks
+  const getNosePosition = useCallback((landmarks) => {
+    if (!landmarks || !landmarks.getNose) {
+      return { x: 0, y: 0 };
+    }
     
-    return new Promise((resolve) => {
-      const startTime = Date.now();
-      let blinkDetected = false;
-      let previousEAR = null;
-      let frameCount = 0;
+    try {
+      const nose = landmarks.getNose();
+      const points = Array.isArray(nose) ? nose : nose._positions;
+      
+      if (!points || points.length === 0) {
+        return { x: 0, y: 0 };
+      }
+      
+      // Use the nose tip (usually the center point)
+      const noseTip = points[Math.floor(points.length / 2)];
+      return { x: noseTip.x, y: noseTip.y };
+    } catch (error) {
+      console.warn('Failed to get nose position:', error);
+      return { x: 0, y: 0 };
+    }
+  }, []);
 
-      const checkBlink = async () => {
-        const elapsed = Date.now() - startTime;
-        
-        if (elapsed >= duration) {
-          resolve({
-            success: blinkDetected,
-            confidence: blinkDetected ? 0.9 : 0.1,
-            details: {
-              blinkDetected,
-              frameCount,
-              duration: elapsed
-            }
-          });
-          return;
-        }
+  // Improve calculateSmileScore function - moved before detectSmile to fix initialization order
+  const calculateSmileScore = useCallback((landmarks) => {
+    if (!landmarks || !landmarks.getMouth) {
+      return 0;
+    }
 
-        try {
-          const detectionResult = await detectFaces();
-          
-          if (detectionResult.faces.length > 0) {
-            const face = detectionResult.faces[0];
-            
-            if (face.landmarks) {
-              const currentEAR = calculateEAR(face.landmarks);
-              frameCount++;
-              
-              // Detect blink by checking for significant drop in EAR
-              if (previousEAR !== null && previousEAR - currentEAR > threshold) {
-                console.log(`Blink detected! EAR dropped from ${previousEAR.toFixed(3)} to ${currentEAR.toFixed(3)}`);
-                blinkDetected = true;
-              }
-              
-              previousEAR = currentEAR;
-            }
-          }
-        } catch (error) {
-          console.warn('Blink detection frame failed:', error);
-        }
+    try {
+      const mouth = landmarks.getMouth();
+      const points = Array.isArray(mouth) ? mouth : mouth._positions;
+      
+      if (!points || points.length < 12) return 0;
 
-        setTimeout(checkBlink, 100); // Check every 100ms
+      // Get mouth corner points (left and right corners)
+      const leftCorner = points[0];   // Left corner
+      const rightCorner = points[6];  // Right corner
+      const topLip = points[3];       // Top center
+      const bottomLip = points[9];    // Bottom center
+
+      // Calculate mouth width and height
+      const width = distance(leftCorner, rightCorner);
+      const height = distance(topLip, bottomLip);
+
+      // Calculate mouth curvature (smile indicator)
+      const mouthCenter = {
+        x: (leftCorner.x + rightCorner.x) / 2,
+        y: (leftCorner.y + rightCorner.y) / 2
       };
 
-      checkBlink();
-    });
-  }, [detectFaces]);
+      // Check if corners are higher than center (smile curve)
+      const leftCornerHeight = mouthCenter.y - leftCorner.y;
+      const rightCornerHeight = mouthCenter.y - rightCorner.y;
+      const averageCornerHeight = (leftCornerHeight + rightCornerHeight) / 2;
 
-  // Add the missing detectSmile function
+      // Combine width/height ratio with corner elevation
+      const widthHeightRatio = width / height;
+      const smileScore = (widthHeightRatio / 4) + (averageCornerHeight / 10);
+
+      // Normalize to 0-1 range
+      return Math.min(Math.max(smileScore, 0), 1);
+    } catch (error) {
+      console.warn('Smile score calculation failed:', error);
+      return 0;
+    }
+  }, []);
+
+  // Remove the detectBlink function completely and update detectSmile
   const detectSmile = useCallback(async (duration = 3000, threshold = 0.7) => {
-    console.log(`Starting smile detection for ${duration}ms with threshold ${threshold}`);
+    // console.log(`Starting smile detection for ${duration}ms with threshold ${threshold}`);
     
     return new Promise((resolve) => {
       const startTime = Date.now();
       let smileDetected = false;
       let maxSmileConfidence = 0;
+      let frameCount = 0;
+      let smileFrameCount = 0;
 
       const checkSmile = async () => {
         const elapsed = Date.now() - startTime;
         
         if (elapsed >= duration) {
+          const success = smileDetected && smileFrameCount >= 10; // Need at least 10 frames of smile
           resolve({
-            success: smileDetected,
+            success: success,
             confidence: maxSmileConfidence,
             details: {
-              smileDetected,
+              smileDetected: success,
               maxConfidence: maxSmileConfidence,
-              duration: elapsed
+              duration: elapsed,
+              frameCount,
+              smileFrameCount
             }
           });
           return;
         }
 
         try {
+          // Check if face detection is ready
+          if (!state.isInitialized || !state.modelsLoaded) {
+            // console.warn("Face detection not initialized or models not loaded");
+            setTimeout(checkSmile, 100);
+            return;
+          }
+
           const detectionResult = await detectFaces();
           
           if (detectionResult.faces.length > 0) {
             const face = detectionResult.faces[0];
+            frameCount++;
             
             if (face.landmarks) {
               const smileScore = calculateSmileScore(face.landmarks);
               maxSmileConfidence = Math.max(maxSmileConfidence, smileScore);
               
               if (smileScore > threshold) {
-                console.log(`Smile detected with confidence: ${smileScore.toFixed(3)}`);
-                smileDetected = true;
+                smileFrameCount++;
+                if (!smileDetected) {
+                  // console.log(`Smile detected with confidence: ${smileScore.toFixed(3)}`);
+                  smileDetected = true;
+                }
               }
             }
           }
@@ -929,46 +962,62 @@ export const FaceDetectionProvider = ({ children }) => {
 
       checkSmile();
     });
-  }, [detectFaces]);
+  }, [detectFaces, calculateSmileScore, state.isInitialized, state.modelsLoaded]);
 
-  // Add the missing detectHeadMovement function
+  // Update detectHeadMovement for better detection
   const detectHeadMovement = useCallback(async (direction = 'left', duration = 3000) => {
-    console.log(`Starting head movement detection (${direction}) for ${duration}ms`);
+    // console.log(`Starting head movement detection (${direction}) for ${duration}ms`);
     
     return new Promise((resolve) => {
       const startTime = Date.now();
       let movementDetected = false;
       let initialNosePosition = null;
       let maxMovement = 0;
+      let frameCount = 0;
+      let movementFrameCount = 0;
+      const requiredMovement = 30; // Pixels
 
       const checkMovement = async () => {
         const elapsed = Date.now() - startTime;
         
         if (elapsed >= duration) {
+          const success = movementDetected && movementFrameCount >= 15; // Need sustained movement
           resolve({
-            success: movementDetected,
-            confidence: movementDetected ? 0.8 : 0.2,
+            success: success,
+            confidence: success ? 0.8 : 0.2,
             details: {
-              movementDetected,
+              movementDetected: success,
               maxMovement,
               direction,
-              duration: elapsed
+              duration: elapsed,
+              frameCount,
+              movementFrameCount,
+              requiredMovement
             }
           });
           return;
         }
 
         try {
+          // Check if face detection is ready
+          if (!state.isInitialized || !state.modelsLoaded) {
+            // console.warn("Face detection not initialized or models not loaded");
+            setTimeout(checkMovement, 100);
+            return;
+          }
+
           const detectionResult = await detectFaces();
           
           if (detectionResult.faces.length > 0) {
             const face = detectionResult.faces[0];
+            frameCount++;
             
             if (face.landmarks) {
               const nosePosition = getNosePosition(face.landmarks);
               
               if (initialNosePosition === null) {
                 initialNosePosition = nosePosition;
+                console.log(`Initial nose position: (${nosePosition.x.toFixed(1)}, ${nosePosition.y.toFixed(1)})`);
               } else {
                 const movement = direction === 'left' 
                   ? initialNosePosition.x - nosePosition.x
@@ -976,10 +1025,13 @@ export const FaceDetectionProvider = ({ children }) => {
                 
                 maxMovement = Math.max(maxMovement, movement);
                 
-                // Detect significant movement (threshold of 20 pixels)
-                if (movement > 20) {
-                  console.log(`Head movement (${direction}) detected: ${movement.toFixed(1)}px`);
-                  movementDetected = true;
+                // Detect significant movement
+                if (movement > requiredMovement) {
+                  movementFrameCount++;
+                  if (!movementDetected) {
+                    console.log(`Head movement (${direction}) detected: ${movement.toFixed(1)}px`);
+                    movementDetected = true;
+                  }
                 }
               }
             }
@@ -993,106 +1045,9 @@ export const FaceDetectionProvider = ({ children }) => {
 
       checkMovement();
     });
-  }, [detectFaces]);
+  }, [detectFaces, getNosePosition, state.isInitialized, state.modelsLoaded]);
 
-  // Add the missing calculateEAR function
-  const calculateEAR = useCallback((landmarks) => {
-    if (!landmarks || !landmarks.getLeftEye || !landmarks.getRightEye) {
-      return 0;
-    }
-
-    try {
-      const leftEye = landmarks.getLeftEye();
-      const rightEye = landmarks.getRightEye();
-
-      // Calculate Eye Aspect Ratio for both eyes
-      const leftEAR = calculateSingleEyeEAR(leftEye);
-      const rightEAR = calculateSingleEyeEAR(rightEye);
-
-      // Return average EAR
-      return (leftEAR + rightEAR) / 2;
-    } catch (error) {
-      console.warn('EAR calculation failed:', error);
-      return 0;
-    }
-  }, []);
-
-  // Helper function to calculate EAR for a single eye
-  const calculateSingleEyeEAR = (eyePoints) => {
-    if (!eyePoints || eyePoints.length < 6) return 0;
-
-    // Convert to array if needed
-    const points = Array.isArray(eyePoints) ? eyePoints : eyePoints._positions;
-    
-    if (!points || points.length < 6) return 0;
-
-    // Calculate distances
-    const d1 = distance(points[1], points[5]); // Vertical distance 1
-    const d2 = distance(points[2], points[4]); // Vertical distance 2
-    const d3 = distance(points[0], points[3]); // Horizontal distance
-
-    // EAR formula
-    return (d1 + d2) / (2 * d3);
-  };
-
-  // Helper function to calculate smile score
-  const calculateSmileScore = useCallback((landmarks) => {
-    if (!landmarks || !landmarks.getMouth) {
-      return 0;
-    }
-
-    try {
-      const mouth = landmarks.getMouth();
-      const points = Array.isArray(mouth) ? mouth : mouth._positions;
-      
-      if (!points || points.length < 12) return 0;
-
-      // Calculate mouth width vs height ratio for smile detection
-      const leftCorner = points[0];
-      const rightCorner = points[6];
-      const topCenter = points[3];
-      const bottomCenter = points[9];
-
-      const width = distance(leftCorner, rightCorner);
-      const height = distance(topCenter, bottomCenter);
-
-      // Higher width/height ratio indicates a smile
-      return Math.min(width / height / 3, 1); // Normalize to 0-1
-    } catch (error) {
-      console.warn('Smile score calculation failed:', error);
-      return 0;
-    }
-  }, []);
-
-  // Helper function to get nose position
-  const getNosePosition = useCallback((landmarks) => {
-    if (!landmarks || !landmarks.getNose) {
-      return { x: 0, y: 0 };
-    }
-
-    try {
-      const nose = landmarks.getNose();
-      const points = Array.isArray(nose) ? nose : nose._positions;
-      
-      if (!points || points.length === 0) return { x: 0, y: 0 };
-
-      // Return nose tip position (usually the last point)
-      const noseTip = points[points.length - 1];
-      return { x: noseTip.x, y: noseTip.y };
-    } catch (error) {
-      console.warn('Nose position calculation failed:', error);
-      return { x: 0, y: 0 };
-    }
-  }, []);
-
-  // Helper function to calculate distance between two points
-  const distance = (point1, point2) => {
-    const dx = point1.x - point2.x;
-    const dy = point1.y - point2.y;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  // Update the context value to include all functions
+  // Update context value to remove blink-related functions
   const contextValue = {
     // State
     ...state,
@@ -1120,13 +1075,16 @@ export const FaceDetectionProvider = ({ children }) => {
     resetDetection,
     initializeFaceDetection,
     captureReference,
-    performLivenessTest, // Now properly defined
+    performLivenessTest,
 
-    // Liveness test methods
-    detectBlink,
+    // Liveness test methods (removed detectBlink)
     detectSmile,
     detectHeadMovement,
-    calculateEAR,
+    calculateSmileScore, // Make this available for debugging
+    
+    // Helper functions
+    distance,
+    getNosePosition,
     
     // Storage methods
     getStoredFaceReference,
