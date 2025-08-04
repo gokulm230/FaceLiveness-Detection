@@ -7,6 +7,7 @@ import {
   AlertCircle,
   Eye,
   ArrowRight,
+  ArrowLeft,
   Shield,
   Scan,
   Lock,
@@ -51,9 +52,9 @@ const AuthenticationPage = () => {
     stopDetection,
     stopCamera,
     detectFaces,
-    captureReference, // Add this
-    getStoredFaceReference, // Add this
-    clearStoredFaceReference, // Add this
+    captureReference,
+    getStoredFaceReference,
+    clearStoredFaceReference,
     error: faceDetectionError,
     loading: faceDetectionLoading,
     isCameraActive,
@@ -76,10 +77,15 @@ const AuthenticationPage = () => {
   const sceneRef = useRef(null);
   const animationRef = useRef(null);
   const detectionIntervalRef = useRef(null);
-  const streamRef = useRef(null); // Add this for local stream reference
+  const streamRef = useRef(null);
+
+  // Add the missing computed values for face detection
+  const faceDetected = faceCount === 1 && confidence > 0.6;
+  const multipleFacesDetected = faceCount > 1; // Add this line
+  const noFaceDetected = faceCount === 0;
 
   // Computed values for face detection
-  const faceDetected = faceCount > 0 && confidence > 0.6;
+  // const faceDetected = faceCount > 0 && confidence > 0.6;
 
   // 3D Scene Setup for setup step
   useEffect(() => {
@@ -310,6 +316,7 @@ const AuthenticationPage = () => {
     }
   };
 
+  // Update the handleCaptureReference function
   const handleCaptureReference = async () => {
     try {
       setLoading(true);
@@ -337,13 +344,6 @@ const AuthenticationPage = () => {
         toast.success("Face reference captured and stored successfully!", {
           position: "top-center",
           autoClose: 3000,
-        });
-
-        // Optional: Show capture details
-        console.log("Capture details:", {
-          id: result.data.id,
-          confidence: result.data.confidence,
-          timestamp: result.data.timestamp
         });
 
         // Move to next step after successful capture
@@ -808,12 +808,32 @@ const AuthenticationPage = () => {
                 <div className="w-64 h-80 border-4 border-blue-500 rounded-full opacity-50 animate-pulse"></div>
               </div>
 
-              {/* Face detection indicator */}
+              {/* Single face detection indicator */}
               {faceDetected && (
                 <div className="absolute top-4 left-4 bg-green-500 text-white px-4 py-2 rounded-full flex items-center space-x-2">
                   <Check className="w-4 h-4" />
                   <span className="text-sm font-medium">
                     Face Detected ({confidence.toFixed(2)})
+                  </span>
+                </div>
+              )}
+
+              {/* Multiple faces warning */}
+              {multipleFacesDetected && (
+                <div className="absolute top-4 left-4 bg-red-500 text-white px-4 py-2 rounded-full flex items-center space-x-2 animate-pulse">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    Multiple Faces Detected ({faceCount})
+                  </span>
+                </div>
+              )}
+
+              {/* No face detected */}
+              {noFaceDetected && streamRef.current && (
+                <div className="absolute top-4 left-4 bg-yellow-500 text-white px-4 py-2 rounded-full flex items-center space-x-2">
+                  <Scan className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    No Face Detected
                   </span>
                 </div>
               )}
@@ -839,6 +859,17 @@ const AuthenticationPage = () => {
               />
             </div>
 
+            {/* Multiple faces warning message */}
+            {multipleFacesDetected && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 flex items-center space-x-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-red-700 font-medium">Multiple faces detected!</p>
+                  <p className="text-red-600 text-sm">Please ensure only one person is visible in the camera frame.</p>
+                </div>
+              </div>
+            )}
+
             {/* Debug info */}
             {process.env.NODE_ENV === "development" && (
               <div className="bg-gray-100 rounded-lg p-4 mb-4 text-sm">
@@ -858,6 +889,8 @@ const AuthenticationPage = () => {
                     Faces: {faceCount}
                     <br />
                     Confidence: {confidence.toFixed(2)}
+                    <br />
+                    Multiple Faces: {multipleFacesDetected ? "⚠️ Yes" : "✅ No"}
                   </div>
                 </div>
               </div>
@@ -871,7 +904,6 @@ const AuthenticationPage = () => {
                 Cancel
               </button>
               
-              {/* Show different button text if reference exists */}
               <button
                 onClick={handleCaptureReference}
                 disabled={!faceDetected || loading || !streamRef.current || multipleFacesDetected}
@@ -882,24 +914,8 @@ const AuthenticationPage = () => {
                 ) : (
                   <Camera className="w-5 h-5" />
                 )}
-                <span>
-                  {checkStoredReference() ? "Capture New Reference" : "Capture Reference"}
-                </span>
+                <span>Capture Reference</span>
               </button>
-              
-              {/* Add continue button if reference exists */}
-              {checkStoredReference() && (
-                <button
-                  onClick={() => {
-                    setCurrentStep("liveness");
-                    setProgress(40);
-                  }}
-                  className="bg-green-600 text-white px-6 py-3 rounded-2xl font-medium hover:bg-green-700 transition-colors flex items-center space-x-2"
-                >
-                  <ArrowRight className="w-5 h-5" />
-                  <span>Continue with Existing</span>
-                </button>
-              )}
             </div>
           </div>
         )}
