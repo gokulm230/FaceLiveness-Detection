@@ -367,23 +367,23 @@ const HomePage = () => {
     setLivenessLoading(true);
 
     try {
-      // Step 1: Initialize liveness detection
-      console.log("🚀 Initializing liveness detection...");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // // Step 1: Initialize liveness detection
+      // console.log("🚀 Initializing liveness detection...");
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Step 2: Simulate liveness checks
-      console.log("👁️ Checking eye blink detection...");
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // // Step 2: Simulate liveness checks
+      // console.log("👁️ Checking eye blink detection...");
+      // await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      console.log("😊 Checking smile detection...");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // console.log("😊 Checking smile detection...");
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      console.log("🔄 Checking head movement...");
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // console.log("🔄 Checking head movement...");
+      // await new Promise((resolve) => setTimeout(resolve, 1200));
 
-      // Step 3: Face verification
-      console.log("🎯 Performing face verification...");
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // // Step 3: Face verification
+      // console.log("🎯 Performing face verification...");
+      // await new Promise((resolve) => setTimeout(resolve, 800));
 
       // Step 4: Liveness passed - redirect to schemes
       console.log("✅ Liveness detection completed successfully!");
