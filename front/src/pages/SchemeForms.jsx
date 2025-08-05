@@ -18,11 +18,24 @@ import {
   AlertCircle,
   CheckSquare,
 } from "lucide-react";
+import BackgroundFaceDetection from '../components/BackgroundFaceDetection';
+import BackgroundLivenessDetection from '../components/BackgroundLivenessDetection';
 
 const SchemesFormPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [aadhaarVerified, setAadhaarVerified] = useState(false);
+  
+  // Add background detection states similar to AadhaarScheme.jsx
+  const [backgroundDetection, setBackgroundDetection] = useState({
+    faceCount: 0,
+    confidence: 0,
+    isActive: false,
+    livenessScore: 0,
+    userVerified: false,
+    systemReady: false,
+  });
+  
   const [formData, setFormData] = useState({
     // Personal Information
     fullName: "",
@@ -62,6 +75,27 @@ const SchemesFormPage = () => {
       additionalDoc: null,
     },
   });
+
+  // Handle background face detection updates
+  const handleDetectionUpdate = (detectionData) => {
+    setBackgroundDetection(prev => ({
+      ...prev,
+      faceCount: detectionData.faceCount,
+      confidence: detectionData.confidence,
+      isActive: detectionData.status === 'active',
+      systemReady: detectionData.status === 'active' || prev.systemReady,
+    }));
+  };
+
+  // Handle background liveness updates
+  const handleLivenessUpdate = (livenessData) => {
+    setBackgroundDetection(prev => ({
+      ...prev,
+      livenessScore: livenessData.overallScore,
+      userVerified: livenessData.status === 'completed' && livenessData.overallScore > 0.7,
+      systemReady: livenessData.status !== 'initializing' || prev.systemReady,
+    }));
+  };
 
   const schemes = {
     pmjay: {
@@ -792,6 +826,9 @@ const SchemesFormPage = () => {
               <span className="text-xs sm:text-sm font-medium text-green-700 whitespace-nowrap">
                 Secure Form
               </span>
+              {!backgroundDetection.systemReady && (
+                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse ml-2"></div>
+              )}
             </div>
           </div>
         </div>
@@ -1097,6 +1134,31 @@ const SchemesFormPage = () => {
               Start New Application
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Background Face Detection - Add at the end before closing div */}
+      <BackgroundFaceDetection onDetectionUpdate={handleDetectionUpdate} />
+      
+      {/* Background Liveness Detection */}
+      <BackgroundLivenessDetection 
+        onLivenessUpdate={handleLivenessUpdate}
+        isEnabled={backgroundDetection.faceCount > 0}
+      />
+
+      {/* User verification status indicator */}
+      {backgroundDetection.userVerified && (
+        <div className="fixed top-4 right-4 z-40 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+          <CheckCircle className="w-5 h-5" />
+          <span className="font-medium">User Verified</span>
+        </div>
+      )}
+
+      {/* Security monitoring indicator */}
+      {backgroundDetection.faceCount > 1 && (
+        <div className="fixed top-16 right-4 z-40 bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 animate-pulse">
+          <AlertCircle className="w-5 h-5" />
+          <span className="font-medium">Multiple Faces Detected</span>
         </div>
       )}
     </div>
